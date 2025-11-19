@@ -1,11 +1,231 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Savings Tracker</title>
+    <style>
+        :root{
+            --bg:#0f1724; --card:#0b1220; --muted:#94a3b8; --accent:#06b6d4; --accent-2:#34d399; --danger:#fb7185; --glass: rgba(255,255,255,0.03);
+            --radius:12px; --max-width:980px;
+            font-family: Inter,Segoe UI,Roboto,system-ui,-apple-system,"Helvetica Neue",Arial;
+        }
+        *{box-sizing:border-box}
+        html,body{height:100%}
+        body{
+            margin:0; padding:24px; background:linear-gradient(180deg,#071427 0%, #071020 100%); color:#e6eef6; -webkit-font-smoothing:antialiased;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .app{width:100%;max-width:var(--max-width)}
+        header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+        header h1{font-size:20px;margin:0}
+        header p{margin:0;color:var(--muted);font-size:13px}
+
+        .grid{display:grid;grid-template-columns:360px 1fr;gap:16px}
+        .card{background:var(--card);padding:16px;border-radius:var(--radius);box-shadow:0 4px 18px rgba(2,6,23,0.6)}
+        .summary{display:flex;flex-direction:column;gap:12px}
+        .balance{font-size:28px;font-weight:600}
+        .stats{display:flex;gap:8px}
+        .stat{flex:1;background:var(--glass);padding:10px;border-radius:10px;text-align:center}
+        .stat small{display:block;color:var(--muted);font-size:12px}
+        .stat strong{display:block;margin-top:6px;font-size:18px}
+
+        form{display:flex;flex-direction:column;gap:8px}
+        input,select{width:100%;Padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+        .row{display:flex;gap:8px}
+        .row .half{flex:1}
+        .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:8px;border:none;cursor:pointer}
+        .btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#042027}
+        .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+
+        .transactions{display:flex;flex-direction:column;gap:12px}
+        .tx{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent)}
+        .tx .left{display:flex;gap:12px;align-items:center}
+        .chip{padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.03);font-size:12px;color:var(--muted)}
+        .amount{font-weight:600}
+        .amount.negative{color:var(--danger)}
+        .amount.positive{color:var(--accent-2)}
+
+        .empty{color:var(--muted);text-align:center;padding:24px}
+
+        canvas{width:100%;height:64px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+
+        footer{margin-top:12px;color:var(--muted);font-size:12px;text-align:center}
+
+        @media (max-width:880px){
+            .grid{grid-template-columns:1fr;}
+            header{flex-direction:column;align-items:flex-start;gap:6px}
+        }
+    </style>
 </head>
 <body>
-    Savings Tracker
+    <div class="app">
+        <header>
+            <div>
+                <h1>Savings Tracker</h1>
+                <p>Simple responsive finance tracker — localStorage powered</p>
+            </div>
+            <div style="text-align:right;color:var(--muted);font-size:13px">Built-in: add incomes & expenses</div>
+        </header>
+
+        <main class="grid">
+            <section class="card">
+                <div class="summary">
+                    <div class="balance" id="balance">$0.00</div>
+                    <div class="stats">
+                        <div class="stat">
+                            <small>Total Income</small>
+                            <strong id="totalIncome">$0.00</strong>
+                        </div>
+                        <div class="stat">
+                            <small>Total Expenses</small>
+                            <strong id="totalExpense">$0.00</strong>
+                        </div>
+                    </div>
+
+                    <div>
+                        <canvas id="spark" width="400" height="64" aria-hidden="true"></canvas>
+                    </div>
+                </div>
+
+                <hr style="border:none;height:1px;background:rgba(255,255,255,0.03);margin:12px 0">
+
+                <form id="txForm" aria-label="Add transaction">
+                    <input id="desc" placeholder="Description (e.g., Salary, Groceries)" required />
+                    <div class="row">
+                        <input id="amount" placeholder="Amount (positive for income)" type="number" step="0.01" required class="half" />
+                        <select id="category" class="half">
+                            <option value="general">General</option>
+                            <option value="salary">Salary</option>
+                            <option value="food">Food</option>
+                            <option value="transport">Transport</option>
+                            <option value="entertainment">Entertainment</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <input id="date" type="date" class="half" />
+                        <select id="type" class="half">
+                            <option value="income">Income</option>
+                            <option value="expense">Expense</option>
+                        </select>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:6px">
+                        <button type="submit" class="btn btn-primary">Add Transaction</button>
+                        <button type="button" id="clearBtn" class="btn btn-ghost">Clear All</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="card">
+                <h3 style="margin:0 0 8px 0">Transactions</h3>
+                <div id="txList" class="transactions"></div>
+                <div id="empty" class="empty" style="display:none">No transactions yet — add one above.</div>
+                <footer>Data stored locally in your browser — no server involved.</footer>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Simple finance tracker — localStorage-backed
+        const LS_KEY = 'savings_tracker_v1';
+
+        const el = id => document.getElementById(id);
+        const format = n => (n>=0?'+':'') + '$' + Math.abs(n).toFixed(2);
+
+        let txs = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+        if(!Array.isArray(txs)){
+            // seed sample data for first run
+            txs = [
+                {id:cryptoRandomId(),desc:'Initial Balance',amount:500,type:'income',category:'salary',date: new Date().toISOString().slice(0,10)},
+                {id:cryptoRandomId(),desc:'Coffee',amount: -3.5,type:'expense',category:'food',date: new Date().toISOString().slice(0,10)}
+            ];
+            save();
+        }
+
+        function cryptoRandomId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+
+        function save(){localStorage.setItem(LS_KEY, JSON.stringify(txs));}
+
+        function render(){
+            const totalIncome = txs.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+            const totalExpense = txs.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+            const balance = totalIncome + totalExpense;
+
+            el('totalIncome').textContent = '$' + totalIncome.toFixed(2);
+            el('totalExpense').textContent = '$' + Math.abs(totalExpense).toFixed(2);
+            el('balance').textContent = '$' + balance.toFixed(2);
+
+            const list = el('txList'); list.innerHTML = '';
+            if(txs.length===0){el('empty').style.display='block'} else {el('empty').style.display='none'}
+
+            txs.slice().reverse().forEach(t=>{
+                const div = document.createElement('div'); div.className='tx';
+                const left = document.createElement('div'); left.className='left';
+                const chip = document.createElement('div'); chip.className='chip'; chip.textContent = t.category;
+                const meta = document.createElement('div');
+                meta.innerHTML = `<div style="font-weight:600">${escapeHtml(t.desc)}</div><div style="font-size:12px;color:var(--muted)">${t.date}</div>`;
+                left.appendChild(chip); left.appendChild(meta);
+
+                const right = document.createElement('div');
+                const amt = document.createElement('div'); amt.className='amount '+(t.amount<0?'negative':'positive'); amt.textContent = format(t.amount);
+                const del = document.createElement('button'); del.className='btn btn-ghost'; del.textContent='Delete'; del.style.marginLeft='8px';
+                del.addEventListener('click', ()=>{ if(confirm('Delete this transaction?')){ txs = txs.filter(x=>x.id!==t.id); save(); render(); } });
+                right.appendChild(amt); right.appendChild(del);
+
+                div.appendChild(left); div.appendChild(right);
+                list.appendChild(div);
+            });
+
+            drawSpark();
+        }
+
+        function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+        // draw simple sparkline of cumulative balance
+        function drawSpark(){
+            const canvas = el('spark'); const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            // build cumulative series by date
+            const sorted = txs.slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+            let cum=0; const pts = [];
+            sorted.forEach(t=>{cum += t.amount; pts.push(cum)});
+            if(pts.length===0){ctx.clearRect(0,0,w,h); return}
+
+            const min = Math.min(...pts); const max = Math.max(...pts); const range = Math.max(1, max-min);
+            ctx.clearRect(0,0,w,h);
+            // background gradient
+            const grad = ctx.createLinearGradient(0,0,0,h); grad.addColorStop(0,'rgba(6,182,212,0.06)'); grad.addColorStop(1,'rgba(52,211,153,0.02)');
+            ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+
+            ctx.beginPath();
+            pts.forEach((p,i)=>{
+                const x = (i/(pts.length-1 || 1))* (w-8) + 4;
+                const y = h - ((p - min)/range) * (h-8) - 4;
+                if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            });
+            ctx.strokeStyle = '#34d399'; ctx.lineWidth=2; ctx.stroke();
+        }
+
+        // form
+        el('txForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const desc = el('desc').value.trim();
+            const amountRaw = parseFloat(el('amount').value);
+            const type = el('type').value;
+            const category = el('category').value;
+            const date = el('date').value || new Date().toISOString().slice(0,10);
+            if(!desc || isNaN(amountRaw)) return alert('Please provide description and amount');
+            const amount = type==='expense' ? -Math.abs(amountRaw) : Math.abs(amountRaw);
+            txs.push({id:cryptoRandomId(),desc,amount,type,category,date}); save(); render();
+            el('txForm').reset();
+        });
+
+        el('clearBtn').addEventListener('click', ()=>{
+            if(confirm('Clear all transactions? This cannot be undone.')){ txs = []; save(); render(); }
+        });
+
+        // initial render
+        render();
+    </script>
 </body>
 </html>
